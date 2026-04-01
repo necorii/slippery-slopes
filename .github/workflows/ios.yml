@@ -13,19 +13,19 @@ jobs:
 
       - name: Build Raylib for iOS
         run: |
-          # Clone the official Raylib source
           git clone --depth 1 https://github.com/raysan5/raylib.git
           cd raylib/src
+          # Use the Apple-specific compiler (xcrun) to build the core modules
+          # We use -DPLATFORM_ANDROID as a galaxy-brain hack because it uses the exact same OpenGL ES 2 headers as iOS!
+          xcrun -sdk iphoneos clang -c rcore.c rshapes.c rtextures.c rtext.c rmodels.c raudio.c utils.c \
+            -Os -Wall -DPLATFORM_ANDROID -DGRAPHICS_API_OPENGL_ES2 \
+            -isysroot $(xcrun --sdk iphoneos --show-sdk-path) \
+            -target arm64-apple-ios15.0 \
+            -I. -Iexternal/glfw/include
           
-          # Build it specifically for the iPhone (arm64)
-          make PLATFORM=PLATFORM_DRM \
-            OS=iOS \
-            ARCH=arm64 \
-            SDK=iphoneos \
-            RAYLIB_LIBTYPE=STATIC \
-            -j$(sysctl -n hw.ncpu)
+          # Create the library archive (.a)
+          ar rcs libraylib.a rcore.o rshapes.o rtextures.o rtext.o rmodels.o raudio.o utils.o
           
-          # Move the library to where we can find it
           mkdir -p ../../lib
           cp libraylib.a ../../lib/
           cp raylib.h raymath.h rlgl.h ../../
@@ -33,21 +33,15 @@ jobs:
 
       - name: Build Binary
         run: |
-          # Now we link against our NEWLY BUILT iOS library (.a)
-          # No more 'macOS dylib' drama!
-          clang main.c -o SlipperySlopes \
-            -I. \
-            -L./lib \
-            -target arm64-apple-ios15.0 \
+          # Compile your game linking against our custom-built iPhone library
+          # We use backslashes (\) to tell the terminal "keep reading, this is one long command!"
+          xcrun -sdk iphoneos clang main.c -o SlipperySlopes \
+            -I. -L./lib -lraylib \
+            -Os -Wall -target arm64-apple-ios15.0 \
             -isysroot $(xcrun --sdk iphoneos --show-sdk-path) \
-            -framework CoreGraphics \
-            -framework UIKit \
-            -framework Foundation \
-            -framework QuartzCore \
-            -framework OpenGLES \
-            -framework AudioToolbox \
-            -lraylib \
-            -lm
+            -DPLATFORM_ANDROID -DGRAPHICS_API_OPENGL_ES2 \
+            -framework CoreGraphics -framework UIKit -framework Foundation \
+            -framework QuartzCore -framework OpenGLES -framework AudioToolbox -lm
 
       - name: Package IPA
         run: |
