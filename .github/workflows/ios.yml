@@ -8,24 +8,21 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
       
-      - name: Install Raylib
-        run: brew install raylib
-
       - name: Build Raylib for iOS
         run: |
           git clone --depth 1 https://github.com/raysan5/raylib.git
           cd raylib/src
-          # Use the Apple-specific compiler (xcrun) to build the core modules
-          # We use -DPLATFORM_ANDROID as a galaxy-brain hack because it uses the exact same OpenGL ES 2 headers as iOS!
+          # Compile the core modules using the iPhone SDK
           xcrun -sdk iphoneos clang -c rcore.c rshapes.c rtextures.c rtext.c rmodels.c raudio.c utils.c \
             -Os -Wall -DPLATFORM_ANDROID -DGRAPHICS_API_OPENGL_ES2 \
             -isysroot $(xcrun --sdk iphoneos --show-sdk-path) \
             -target arm64-apple-ios15.0 \
             -I. -Iexternal/glfw/include
           
-          # Create the library archive (.a)
+          # Create the static library
           ar rcs libraylib.a rcore.o rshapes.o rtextures.o rtext.o rmodels.o raudio.o utils.o
           
+          # Move files so the next step can see them
           mkdir -p ../../lib
           cp libraylib.a ../../lib/
           cp raylib.h raymath.h rlgl.h ../../
@@ -33,8 +30,7 @@ jobs:
 
       - name: Build Binary
         run: |
-          # Compile your game linking against our custom-built iPhone library
-          # We use backslashes (\) to tell the terminal "keep reading, this is one long command!"
+          # Link your game against the freshly baked iOS Raylib
           xcrun -sdk iphoneos clang main.c -o SlipperySlopes \
             -I. -L./lib -lraylib \
             -Os -Wall -target arm64-apple-ios15.0 \
@@ -45,16 +41,16 @@ jobs:
 
       - name: Package IPA
         run: |
-          # iOS apps live in a folder called Payload to be a valid IPA
+          # Create the iOS App Bundle structure
           mkdir -p Payload/SlipperySlopes.app
           
-          # Move the binary and ALL your assets into the app bundle
-          cp SlipperySlopes Payload/SlipperySlopes.app/
+          # Move binary and assets into the bundle
+          mv SlipperySlopes Payload/SlipperySlopes.app/
           cp *.png Payload/SlipperySlopes.app/ 2>/dev/null || true
           cp *.wav Payload/SlipperySlopes.app/ 2>/dev/null || true
           cp *.ttf Payload/SlipperySlopes.app/ 2>/dev/null || true
           
-          # Zip it up!
+          # Zip it into an IPA
           zip -r SlipperySlopes.ipa Payload/
 
       - name: Upload Artifact
