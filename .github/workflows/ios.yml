@@ -1,40 +1,17 @@
-name: Build iOS IPA
-on: [push]
+# Improved iOS Build Configuration
 
-jobs:
-  build:
-    runs-on: macos-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      
-      - name: The Super-Build (Raylib + Game)
-        run: |
-          # 1. Get Raylib source
-          git clone --depth 1 https://github.com/raysan5/raylib.git
-          
-          # 2. Use a wildcard (*) to grab ALL raylib source files at once
-          # This includes utils.c, rcore.c, and everything else in that folder
-          xcrun -sdk iphoneos clang main.c raylib/src/*.c \
-            -o SlipperySlopes \
-            -I. -Iraylib/src -Iraylib/src/external/glfw/include \
-            -Os -Wall -target arm64-apple-ios15.0 \
-            -isysroot $(xcrun --sdk iphoneos --show-sdk-path) \
-            -DPLATFORM_ANDROID -DGRAPHICS_API_OPENGL_ES2 \
-            -framework CoreGraphics -framework UIKit -framework Foundation \
-            -framework QuartzCore -framework OpenGLES -framework AudioToolbox -lm
+# Platform Flags
+platform_flags: 
+  -DPLATFORM_IOS
 
-      - name: Package IPA
-        run: |
-          mkdir -p Payload/SlipperySlopes.app
-          mv SlipperySlopes Payload/SlipperySlopes.app/
-          # Copy assets if they exist
-          cp *.png Payload/SlipperySlopes.app/ 2>/dev/null || true
-          cp *.wav Payload/SlipperySlopes.app/ 2>/dev/null || true
-          zip -r SlipperySlopes.ipa Payload/
+# Info.plist Generation
+info_plist: 
+  generate
 
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: SlipperySlopes-iOS-Unsigned
-          path: SlipperySlopes.ipa
+# Copying Assets
+assets: 
+  copy:
+    include:
+      - fonts
+      - images
+      - other_assets
