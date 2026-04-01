@@ -1,11 +1,1 @@
-# This is an example of how to set up Homebrew's prebuilt Raylib.
-# Using the prebuilt version can help avoid Objective-C header issues.
-
-# Before this step, ensure Homebrew is installed:
-# brew install raylib
-
-- name: Install Raylib
-  run: |
-    brew install raylib --HEAD
-
-# Other steps in your workflow follow...
+name: iOS Build\n\non: push:\n  branches:\n    - main\n\njobs:\n  build:\n    runs-on: macOS-latest\n    steps:\n      - name: Check out repository\n        uses: actions/checkout@v2\n\n      - name: Set up Ruby\n        uses: rbenv/rbenv@master\n        with:\n          ruby-version: '2.7.2'\n\n      - name: Install Raylib\n        run: |\n          brew install cmake\n          brew install raylib\n\n      - name: Compile main.c\n        run: |\n          gcc -o MyApp main.c -I/usr/local/include -L/usr/local/lib -lraylib\n\n      - name: Create Info.plist\n        run: |\n          echo '<?xml version="1.0" encoding="UTF-8"?>\n          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n          <plist version="1.0">\n          <dict>\n            <key>CFBundleName</key>\n            <string>MyApp</string>\n            <key>CFBundleIdentifier</key>\n            <string>com.necorii.MyApp</string>\n            <key>CFBundleVersion</key>\n            <string>1.0</string>\n            <key>CFBundleShortVersionString</key>\n            <string>1.0</string>\n          </dict>\n          </plist>' > MyApp/Info.plist\n\n      - name: Create app bundle\n        run: |\n          mkdir -p MyApp.app/Contents/MacOS\n          mv MyApp MyApp.app/Contents/MacOS/\n          cp MyApp/Info.plist MyApp.app/Contents/\n\n      - name: Package as IPA\n        run: |\n          xcodebuild -exportArchive -archivePath MyApp.xcarchive -exportPath ./MyApp -exportOptionsPlist exportOptions.plist\n\n      - name: Upload IPA as artifact\n        uses: actions/upload-artifact@v4\n        with:\n          name: MyApp-IPA\n          path: ./MyApp/MyApp.ipa\n
