@@ -12,17 +12,17 @@ jobs:
         run: |
           git clone --depth 1 https://github.com/raysan5/raylib.git
           cd raylib/src
-          # Compile the core modules using the iPhone SDK
+          # We stay in this folder to find all the .c files
           xcrun -sdk iphoneos clang -c rcore.c rshapes.c rtextures.c rtext.c rmodels.c raudio.c utils.c \
             -Os -Wall -DPLATFORM_ANDROID -DGRAPHICS_API_OPENGL_ES2 \
             -isysroot $(xcrun --sdk iphoneos --show-sdk-path) \
             -target arm64-apple-ios15.0 \
             -I. -Iexternal/glfw/include
           
-          # Create the static library
+          # Create the library archive (.a)
           ar rcs libraylib.a rcore.o rshapes.o rtextures.o rtext.o rmodels.o raudio.o utils.o
           
-          # Move files so the next step can see them
+          # Now move it back to our main folder so the next step can find it
           mkdir -p ../../lib
           cp libraylib.a ../../lib/
           cp raylib.h raymath.h rlgl.h ../../
