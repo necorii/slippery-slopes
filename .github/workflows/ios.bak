@@ -1,0 +1,27 @@
+name: Build iOS IPA
+on: [push]
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Raylib
+        run: brew install raylib
+
+      - name: Build
+        run: |
+          # Compile using clang + iOS SDK paths
+          clang main.c -o SlipperySlopes -target arm64-apple-ios15.0-simulator -framework CoreGraphics -framework UIKit -framework Foundation -lraylib
+          
+          # Wrap it into a Payload folder for the IPA
+          mkdir -p Payload
+          mv SlipperySlopes Payload/
+          zip -r SlipperySlopes.ipa Payload/
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa
+          path: SlipperySlopes.ipa
