@@ -1,57 +1,11 @@
-name: Build iOS IPA
+# This is an example of how to set up Homebrew's prebuilt Raylib.
+# Using the prebuilt version can help avoid Objective-C header issues.
 
-on: [push]
+# Before this step, ensure Homebrew is installed:
+# brew install raylib
 
-jobs:
-  build:
-    runs-on: macos-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+- name: Install Raylib
+  run: |
+    brew install raylib --HEAD
 
-      - name: Clone Raylib
-        run: git clone --depth 1 https://github.com/raysan5/raylib.git
-
-      - name: Compile iOS Binary
-        run: |
-          xcrun -sdk iphoneos clang main.c raylib/src/*.c \
-            -o SlipperySlopes \
-            -I. -Iraylib/src -Iraylib/src/external/glfw/include \
-            -Os -Wall -target arm64-apple-ios15.0 \
-            -isysroot $(xcrun --sdk iphoneos --show-sdk-path) \
-            -DPLATFORM_IOS \
-            -DGRAPHICS_API_OPENGL_ES2 \
-            -framework CoreGraphics -framework UIKit -framework Foundation \
-            -framework QuartzCore -framework OpenGLES -framework AudioToolbox -lm
-
-      - name: Create App Bundle
-        run: |
-          mkdir -p Payload/SlipperySlopes.app
-          mv SlipperySlopes Payload/SlipperySlopes.app/
-          cat > Payload/SlipperySlopes.app/Info.plist << 'EOF'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>CFBundleName</key><string>Slippery Slopes</string>
-            <key>CFBundleIdentifier</key><string>com.necorii.slipperyslopes</string>
-            <key>CFBundleVersion</key><string>1.0</string>
-            <key>CFBundleExecutable</key><string>SlipperySlopes</string>
-            <key>UIDeviceFamily</key><array><integer>1</integer><integer>2</integer></array>
-            <key>MinimumOSVersion</key><string>15.0</string>
-          </dict>
-          </plist>
-          EOF
-          cp *.png Payload/SlipperySlopes.app/ 2>/dev/null || true
-          cp *.wav Payload/SlipperySlopes.app/ 2>/dev/null || true
-          cp *.ttf Payload/SlipperySlopes.app/ 2>/dev/null || true
-
-      - name: Package as IPA
-        run: |
-          cd Payload && zip -r ../SlipperySlopes.ipa SlipperySlopes.app && cd ..
-
-      - name: Upload IPA
-        uses: actions/upload-artifact@v4
-        with:
-          name: SlipperySlopes-iOS-Unsigned
-          path: SlipperySlopes.ipa
+# Other steps in your workflow follow...
