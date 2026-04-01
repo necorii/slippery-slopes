@@ -8,49 +8,40 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
       
-      - name: Build Raylib for iOS
+      - name: Build Raylib for iOS (The Proper Way)
         run: |
           git clone --depth 1 https://github.com/raysan5/raylib.git
-          cd raylib/src
-          # We stay in this folder to find all the .c files
-          xcrun -sdk iphoneos clang -c rcore.c rshapes.c rtextures.c rtext.c rmodels.c raudio.c rglfw.c \
-            -Os -Wall -DPLATFORM_ANDROID -DGRAPHICS_API_OPENGL_ES2 \
-            -isysroot $(xcrun --sdk iphoneos --show-sdk-path) \
-            -target arm64-apple-ios15.0 \
-            -I. -Iexternal/glfw/include
+          mkdir -p raylib/build
+          cd raylib/build
+          # Use CMake to configure specifically for iOS
+          cmake .. -DPLATFORM=iOS -DDEPLOYMENT_TARGET=15.0
+          # Build only the raylib library
+          cmake --build . --target raylib
           
-          # Create the library archive (.a)
-          ar rcs libraylib.a rcore.o rshapes.o rtextures.o rtext.o rmodels.o raudio.o rglfw.o
-          
-          # Now move it back to our main folder so the next step can find it
+          # Move files to where our project needs them
           mkdir -p ../../lib
-          cp libraylib.a ../../lib/
-          cp raylib.h raymath.h rcamera.h rgestures.h rlgl.h ../../
+          cp raylib/libraylib.a ../../lib/
+          cp ../src/raylib.h ../src/raymath.h ../src/rlgl.h ../../
           cd ../../
 
       - name: Build Binary
         run: |
-          # Link your game against the freshly baked iOS Raylib
+          # Now compile your game linking against the official iOS build
           xcrun -sdk iphoneos clang main.c -o SlipperySlopes \
             -I. -L./lib -lraylib \
             -Os -Wall -target arm64-apple-ios15.0 \
             -isysroot $(xcrun --sdk iphoneos --show-sdk-path) \
-            -DPLATFORM_ANDROID -DGRAPHICS_API_OPENGL_ES2 \
+            -DPLATFORM_IOS -DGRAPHICS_API_OPENGL_ES2 \
             -framework CoreGraphics -framework UIKit -framework Foundation \
             -framework QuartzCore -framework OpenGLES -framework AudioToolbox -lm
 
       - name: Package IPA
         run: |
-          # Create the iOS App Bundle structure
           mkdir -p Payload/SlipperySlopes.app
-          
-          # Move binary and assets into the bundle
           mv SlipperySlopes Payload/SlipperySlopes.app/
           cp *.png Payload/SlipperySlopes.app/ 2>/dev/null || true
           cp *.wav Payload/SlipperySlopes.app/ 2>/dev/null || true
           cp *.ttf Payload/SlipperySlopes.app/ 2>/dev/null || true
-          
-          # Zip it into an IPA
           zip -r SlipperySlopes.ipa Payload/
 
       - name: Upload Artifact
