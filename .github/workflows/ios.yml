@@ -11,14 +11,33 @@ jobs:
       - name: Install Raylib
         run: brew install raylib
 
+      - name: Build Raylib for iOS
+        run: |
+          # Clone the official Raylib source
+          git clone --depth 1 https://github.com/raysan5/raylib.git
+          cd raylib/src
+          
+          # Build it specifically for the iPhone (arm64)
+          make PLATFORM=PLATFORM_DRM \
+            OS=iOS \
+            ARCH=arm64 \
+            SDK=iphoneos \
+            RAYLIB_LIBTYPE=STATIC \
+            -j$(sysctl -n hw.ncpu)
+          
+          # Move the library to where we can find it
+          mkdir -p ../../lib
+          cp libraylib.a ../../lib/
+          cp raylib.h raymath.h rlgl.h ../../
+          cd ../../
+
       - name: Build Binary
         run: |
-          # We manually point clang to the Homebrew include and lib folders
-          # $(brew --prefix raylib) dynamically finds where the files live!
+          # Now we link against our NEWLY BUILT iOS library (.a)
+          # No more 'macOS dylib' drama!
           clang main.c -o SlipperySlopes \
             -I. \
-            -I$(brew --prefix raylib)/include \
-            -L$(brew --prefix raylib)/lib \
+            -L./lib \
             -target arm64-apple-ios15.0 \
             -isysroot $(xcrun --sdk iphoneos --show-sdk-path) \
             -framework CoreGraphics \
@@ -27,7 +46,8 @@ jobs:
             -framework QuartzCore \
             -framework OpenGLES \
             -framework AudioToolbox \
-            -lraylib
+            -lraylib \
+            -lm
 
       - name: Package IPA
         run: |
