@@ -13,12 +13,14 @@ jobs:
 
       - name: Build Binary
         run: |
-          # We tell the compiler to target actual iPhones (arm64)
-          # We link the standard iOS frameworks your game needs
+          # We manually point clang to the Homebrew include and lib folders
+          # $(brew --prefix raylib) dynamically finds where the files live!
           clang main.c -o SlipperySlopes \
             -I. \
-            -isysroot $(xcrun --sdk iphoneos --show-sdk-path) \
+            -I$(brew --prefix raylib)/include \
+            -L$(brew --prefix raylib)/lib \
             -target arm64-apple-ios15.0 \
+            -isysroot $(xcrun --sdk iphoneos --show-sdk-path) \
             -framework CoreGraphics \
             -framework UIKit \
             -framework Foundation \

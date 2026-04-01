@@ -5,23 +5,44 @@ jobs:
   build:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
       
       - name: Install Raylib
         run: brew install raylib
 
-      - name: Build
+      - name: Build Binary
         run: |
-          # Compile using clang + iOS SDK paths
-          clang main.c -o SlipperySlopes -target arm64-apple-ios15.0-simulator -framework CoreGraphics -framework UIKit -framework Foundation -lraylib
+          # We tell the compiler to target actual iPhones (arm64)
+          # We link the standard iOS frameworks your game needs
+          clang main.c -o SlipperySlopes \
+            -I. \
+            -isysroot $(xcrun --sdk iphoneos --show-sdk-path) \
+            -target arm64-apple-ios15.0 \
+            -framework CoreGraphics \
+            -framework UIKit \
+            -framework Foundation \
+            -framework QuartzCore \
+            -framework OpenGLES \
+            -framework AudioToolbox \
+            -lraylib
+
+      - name: Package IPA
+        run: |
+          # iOS apps live in a folder called Payload to be a valid IPA
+          mkdir -p Payload/SlipperySlopes.app
           
-          # Wrap it into a Payload folder for the IPA
-          mkdir -p Payload
-          mv SlipperySlopes Payload/
+          # Move the binary and ALL your assets into the app bundle
+          cp SlipperySlopes Payload/SlipperySlopes.app/
+          cp *.png Payload/SlipperySlopes.app/ 2>/dev/null || true
+          cp *.wav Payload/SlipperySlopes.app/ 2>/dev/null || true
+          cp *.ttf Payload/SlipperySlopes.app/ 2>/dev/null || true
+          
+          # Zip it up!
           zip -r SlipperySlopes.ipa Payload/
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ios-ipa
+          name: SlipperySlopes-iOS-Unsigned
           path: SlipperySlopes.ipa
