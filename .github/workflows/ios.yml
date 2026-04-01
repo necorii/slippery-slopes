@@ -1,4 +1,4 @@
-name: build for ios
+name: Build iOS IPA
 on: [push]
 
 jobs:
@@ -8,40 +8,23 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
       
-      - name: make my library right now please
+      - name: The Super-Build (Raylib + Game)
         run: |
+          # 1. Get Raylib source
           git clone --depth 1 https://github.com/raysan5/raylib.git
-          cd raylib/src
           
-          # We use the Raylib Makefile but force the iOS flags manually
-          # This avoids the CMake "Unknown Platform" drama
-          make PLATFORM=PLATFORM_DRM \
-            OS=iOS \
-            ARCH=arm64 \
-            SDK=iphoneos \
-            RAYLIB_LIBTYPE=STATIC \
-            -j$(sysctl -n hw.ncpu) || true 
-            
-          # The '|| true' is because the full build might 'fail' on examples, 
-          # but we only need the libraylib.a file which builds first!
-          
-          mkdir -p ../../lib
-          cp libraylib.a ../../lib/ 2>/dev/null || cp libraylib.a ../../lib/ || echo "Searching for lib..."
-          cp raylib.h raymath.h rlgl.h ../../
-          cd ../../
-
-      - name: Build THE IPA OR I TURN YOU INTO DUST
-        run: |
-          # Link against the library we just forced into existence
-          xcrun -sdk iphoneos clang main.c -o SlipperySlopes \
-            -I. -L./lib -lraylib \
+          # 2. Use a wildcard (*) to grab ALL raylib source files at once
+          # This includes utils.c, rcore.c, and everything else in that folder
+          xcrun -sdk iphoneos clang main.c raylib/src/*.c \
+            -o SlipperySlopes \
+            -I. -Iraylib/src -Iraylib/src/external/glfw/include \
             -Os -Wall -target arm64-apple-ios15.0 \
             -isysroot $(xcrun --sdk iphoneos --show-sdk-path) \
-            -DPLATFORM_IOS -DGRAPHICS_API_OPENGL_ES2 \
+            -DPLATFORM_ANDROID -DGRAPHICS_API_OPENGL_ES2 \
             -framework CoreGraphics -framework UIKit -framework Foundation \
             -framework QuartzCore -framework OpenGLES -framework AudioToolbox -lm
 
-      - name: Package IPA OR I TURN YOU INTO DUST
+      - name: Package IPA
         run: |
           mkdir -p Payload/SlipperySlopes.app
           mv SlipperySlopes Payload/SlipperySlopes.app/
@@ -50,7 +33,7 @@ jobs:
           cp *.wav Payload/SlipperySlopes.app/ 2>/dev/null || true
           zip -r SlipperySlopes.ipa Payload/
 
-      - name: Upload IPA OR I TURN YOU INTO DUST
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: SlipperySlopes-iOS-Unsigned
